@@ -62,7 +62,7 @@ impl Number {
     fn calc_if_valid(&self) -> Option<usize> {
         match self {
             &Difference(ref a, ref b) if a.calc() < b.calc() => None,
-            &Quotient(ref a, ref b) if b.calc() == 0 => None,
+            &Quotient(ref a, ref b) if b.calc() == 0 || a.calc() % b.calc() != 0 => None,
             _ => Some(self.calc()),
         }
     }
@@ -70,9 +70,7 @@ impl Number {
 
 fn solve(target: usize, numbers: Vec<Rc<Number>>) {
     for i in 0..numbers.len() {
-        // for j in 0..numbers.len() {
         for j in (i + 1)..numbers.len() {
-            // if i == j { continue; }
             for k in 0..6 {
                 // if solutions.len() > 0 { continue; }//remove to look for more than 1 solution.
                 let a = Rc::clone(&numbers[i]);
@@ -96,10 +94,10 @@ fn solve(target: usize, numbers: Vec<Rc<Number>>) {
                             .map(|index| Rc::clone(&numbers[index]))
                             .chain(iter::once(combination))
                             .collect::<Vec<Rc<Number>>>();
-                        solve(target, remaining_numbers)
+                        solve(target, remaining_numbers);
                         // solutions.extend(check(target, remaining_numbers));
                     }
-                };
+                }
             }
         }
     }
