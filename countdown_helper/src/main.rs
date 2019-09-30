@@ -1,32 +1,51 @@
 #![allow(unconditional_recursion, dead_code, unused_variables, unused_imports)]
 
+extern crate clap;
 extern crate time;
 
-use time::PreciseTime;
+use clap::{App, Arg, SubCommand};
 use std::iter;
 use std::rc::Rc;
+use time::PreciseTime;
 
 use Number::*;
 
 fn main() {
-    let start = PreciseTime::now();
-    // solve(100, vec!(1,2,3,4,20,70));
-    solve(808, prep(vec!(75, 100, 4, 1, 3, 3)));
-    // solve(527, vec!(25, 75, 8, 2, 1, 4));
-    // solve(746, vec!(100, 75, 2, 10, 3, 8));
-    // solve(24, prep(vec!(8, 4, 3, 3)));
-    // solve(900, prep(vec!(1, 2, 7, 890)));
-    // solve(100, vec!(25, 75, 100, 8, 9, 10));
-    // solve(100, vec!(8, 9, 10, 1));
-    // solve(100, vec!(1,2,3,4,10,80));
-    let end = PreciseTime::now();
-    println!("{} seconds", start.to(end));
-}
+    let matches = App::new("Countdown solver")
+        .version("1.0")
+        .author("Arjan Boschman")
+        .about("Calculates all possible solutions to a countdown numbers round.")
+        .arg(
+            Arg::with_name("TARGET")
+                .help("The target number.")
+                .required(true)
+                .index(1),
+        )
+        .arg(
+            Arg::with_name("INPUT")
+                .help("Sets the input numbers to use. Enter at least one number.")
+                .required(true)
+                .multiple(true)
+                .index(2),
+        )
+        .get_matches();
 
-fn prep(input: Vec<usize>) -> Vec<Rc<Number>> {
-    input.iter()
-        .map(|&number| Rc::new(Atomic(number)))
-        .collect()
+    let target = matches
+        .value_of("TARGET")
+        .unwrap()
+        .parse::<usize>()
+        .expect("TARGET must be an integral number.");
+    let input_numbers = matches
+        .values_of("INPUT")
+        .unwrap()
+        .map(|string| {
+            string
+                .parse::<usize>()
+                .expect("INPUTS must be integral numbers.")
+        })
+        .map(|number| Rc::new(Atomic(number)))
+        .collect();
+    solve(target, input_numbers);
 }
 
 enum Number {
@@ -38,31 +57,32 @@ enum Number {
 }
 
 impl Number {
-
     fn calc(&self) -> usize {
-        match self {
-            &Atomic(value) => value,
-            &Sum(ref a, ref b) => a.calc() + b.calc(),
-            &Difference(ref a, ref b) => a.calc() - b.calc(),
-            &Product(ref a, ref b) => a.calc() * b.calc(),
-            &Quotient(ref a, ref b) => a.calc() / b.calc(),
+        match *self {
+            Atomic(value) => value,
+            Sum(ref a, ref b) => a.calc() + b.calc(),
+            Difference(ref a, ref b) => a.calc() - b.calc(),
+            Product(ref a, ref b) => a.calc() * b.calc(),
+            Quotient(ref a, ref b) => a.calc() / b.calc(),
         }
     }
 
     fn print(&self) -> String {
-        match self {
-            &Atomic(ref value) => format!("{}", value),
-            &Sum(ref a, ref b) => format!("[{} + {} = {}]", a.print(), b.print(), self.calc()),
-            &Difference(ref a, ref b) => format!("[{} - {} = {}]", a.print(), b.print(), self.calc()),
-            &Product(ref a, ref b) => format!("[{} * {} = {}]", a.print(), b.print(), self.calc()),
-            &Quotient(ref a, ref b) => format!("[{} / {} = {}]", a.print(), b.print(), self.calc()),
+        match *self {
+            Atomic(ref value) => format!("{}", value),
+            Sum(ref a, ref b) => format!("[{} + {} = {}]", a.print(), b.print(), self.calc()),
+            Difference(ref a, ref b) => {
+                format!("[{} - {} = {}]", a.print(), b.print(), self.calc())
+            }
+            Product(ref a, ref b) => format!("[{} * {} = {}]", a.print(), b.print(), self.calc()),
+            Quotient(ref a, ref b) => format!("[{} / {} = {}]", a.print(), b.print(), self.calc()),
         }
     }
 
     fn calc_if_valid(&self) -> Option<usize> {
-        match self {
-            &Difference(ref a, ref b) if a.calc() < b.calc() => None,
-            &Quotient(ref a, ref b) if b.calc() == 0 || a.calc() % b.calc() != 0 => None,
+        match *self {
+            Difference(ref a, ref b) if a.calc() < b.calc() => None,
+            Quotient(ref a, ref b) if b.calc() == 0 || a.calc() % b.calc() != 0 => None,
             _ => Some(self.calc()),
         }
     }
@@ -82,12 +102,12 @@ fn solve(target: usize, numbers: Vec<Rc<Number>>) {
                     3 => Rc::new(Quotient(a, b)),
                     4 => Rc::new(Difference(b, a)),
                     5 => Rc::new(Quotient(b, a)),
-                    _ => panic!()
+                    _ => panic!(),
                 };
                 if let Some(valid_number) = combination.calc_if_valid() {
                     if valid_number == target {
                         println!("{}", combination.print());
-                        // solutions.push(combination);
+                    // solutions.push(combination);
                     } else if numbers.len() > 2 {
                         let remaining_numbers = (0..numbers.len())
                             .filter(|index| index != &i && index != &j)
